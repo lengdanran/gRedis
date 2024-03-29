@@ -1,4 +1,7 @@
 // Package handler lengdanran 2024/3/27 18:43
+//go:build darwin
+// +build darwin
+
 package handler
 
 import (

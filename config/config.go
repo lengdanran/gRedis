@@ -23,7 +23,7 @@ type GRedisServerConfig struct {
 func init() {
 	ServerConfig = &GRedisServerConfig{
 		Addr:  "0.0.0.0",
-		Port:  2345,
+		Port:  6379,
 		RunId: uuid.New().String(),
 	}
 	// Load configuration file

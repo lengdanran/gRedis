@@ -1,13 +1,12 @@
 // Package main lengdanran 2024/3/27 16:53
-//go:build darwin
-// +build darwin
+//go:build linux
+// +build linux
 
 package main
 
 import (
 	"github.com/lengdanran/gredis/config"
 	"github.com/lengdanran/gredis/epoll"
-	"github.com/lengdanran/gredis/redis/handler"
 	"log/slog"
 )
 
@@ -25,6 +24,9 @@ func main() {
 	// read configuration
 	slog.Info(config.ServerConfig.RunId)
 	// for darwin
-	server := epoll.NewBsdServer(config.ServerConfig, handler.RedisBsdPollEventHandleFunc, nil)
-	server.Start()
+	// server := epoll.NewBsdServer(config.ServerConfig, handler.RedisBsdPollEventHandleFunc, nil)
+	// server.Start()
+
+	// for linux
+	epoll.NewEpollServer(config.ServerConfig, nil).Start()
 }

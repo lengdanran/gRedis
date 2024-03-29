@@ -1,4 +1,7 @@
 // Package epoll lengdanran 2024/3/29 14:41
+//go:build darwin
+// +build darwin
+
 package epoll
 
 import (

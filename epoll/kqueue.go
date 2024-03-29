@@ -1,3 +1,6 @@
+//go:build darwin
+// +build darwin
+
 // Package epoll lengdanran 2024/3/29 14:55
 package epoll
 
