@@ -3,8 +3,8 @@ package main
 
 import (
 	"github.com/lengdanran/gredis/config"
+	"github.com/lengdanran/gredis/epoll"
 	"github.com/lengdanran/gredis/redis/handler"
-	"github.com/lengdanran/gredis/server"
 	"log/slog"
 )
 
@@ -21,9 +21,6 @@ func main() {
 	slog.Info(BANNER)
 	// read configuration
 	slog.Info(config.ServerConfig.RunId)
-	// start gredis server
-	err := server.StartServer(config.ServerConfig.Addr, config.ServerConfig.Port, handler.NewRedisHandler())
-	if err != nil {
-		return
-	}
+	server := epoll.NewBsdServer(config.ServerConfig, handler.RedisBsdPollEventHandleFunc, nil)
+	server.Start()
 }

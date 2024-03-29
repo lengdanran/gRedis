@@ -7,7 +7,6 @@ import (
 	"github.com/lengdanran/gredis/interface/redis"
 	"github.com/lengdanran/gredis/redis/protocol"
 	"io"
-	"log/slog"
 	"strconv"
 	"strings"
 )
@@ -18,55 +17,9 @@ type Payload struct {
 	Err  error
 }
 
-// ParseStream reads data from io.Reader and send payloads through channel
-func ParseStream(reader io.Reader) <-chan *Payload {
-	ch := make(chan *Payload)
-	go parse0(reader, ch)
-	return ch
-}
-
-// ParseBytes reads data from []byte and return all replies
-func ParseBytes(data []byte) ([]redis.Reply, error) {
-	ch := make(chan *Payload)
-	reader := bytes.NewReader(data)
-	go parse0(reader, ch)
-	var results []redis.Reply
-	for payload := range ch {
-		if payload == nil {
-			return nil, errors.New("no protocol")
-		}
-		if payload.Err != nil {
-			if payload.Err == io.EOF {
-				break
-			}
-			return nil, payload.Err
-		}
-		results = append(results, payload.Data)
-	}
-	return results, nil
-}
-
-// ParseOne reads data from []byte and return the first payload
-func ParseOne(data []byte) (redis.Reply, error) {
-	ch := make(chan *Payload)
-	reader := bytes.NewReader(data)
-	go parse0(reader, ch)
-	payload := <-ch // parse0 will close the channel
-	if payload == nil {
-		return nil, errors.New("no protocol")
-	}
-	return payload.Data, payload.Err
-}
-
-func parse0(rawReader io.Reader, ch chan<- *Payload) {
-	defer func() {
-		if err := recover(); err != nil {
-			slog.Error(err.(error).Error())
-		}
-	}()
-	reader := bufio.NewReader(rawReader)
+func ParseRedisRequestStream(r *bufio.Reader, ch chan<- *Payload) {
 	for {
-		line, err := reader.ReadBytes('\n')
+		line, err := r.ReadBytes('\n')
 		if err != nil {
 			// 出现err，网络关闭，结束循环
 			ch <- &Payload{Err: err}
@@ -80,6 +33,10 @@ func parse0(rawReader io.Reader, ch chan<- *Payload) {
 			continue
 		}
 		// 剔除掉\r\n后缀
+		end := false
+		if bytes.HasSuffix(line, []byte("\r\n")) {
+			end = true
+		}
 		line = bytes.TrimSuffix(line, []byte{'\r', '\n'})
 		switch line[0] {
 		case '+':
@@ -88,7 +45,7 @@ func parse0(rawReader io.Reader, ch chan<- *Payload) {
 				Data: protocol.MakeStatusReply(content),
 			}
 			if strings.HasPrefix(content, "FULLRESYNC") {
-				err = parseRDBBulkString(reader, ch)
+				err = parseRDBBulkString(r, ch)
 				if err != nil {
 					ch <- &Payload{Err: err}
 					close(ch)
@@ -109,14 +66,14 @@ func parse0(rawReader io.Reader, ch chan<- *Payload) {
 				Data: protocol.MakeIntReply(value),
 			}
 		case '$':
-			err = parseBulkString(line, reader, ch)
+			err = parseBulkString(line, r, ch)
 			if err != nil {
 				ch <- &Payload{Err: err}
 				close(ch)
 				return
 			}
 		case '*':
-			err = parseArray(line, reader, ch)
+			err = parseArray(line, r, ch)
 			if err != nil {
 				ch <- &Payload{Err: err}
 				close(ch)
@@ -127,6 +84,14 @@ func parse0(rawReader io.Reader, ch chan<- *Payload) {
 			ch <- &Payload{
 				Data: protocol.MakeMultiBulkReply(args),
 			}
+		}
+		if bytes.HasSuffix(line, []byte("\r\n")) {
+			close(ch)
+			break
+		}
+		if end {
+			close(ch)
+			break
 		}
 	}
 }
