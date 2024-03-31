@@ -1,6 +1,5 @@
 // Package main lengdanran 2024/3/27 16:53
 //go:build darwin
-// +build darwin
 
 package main
 
