@@ -1,11 +1,11 @@
 // Package handler lengdanran 2024/3/27 18:43
 //go:build darwin
-// +build darwin
 
 package handler
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"github.com/lengdanran/gredis/epoll"
 	"github.com/lengdanran/gredis/redis/dbengine"
@@ -23,7 +23,7 @@ func RedisBsdPollEventHandleFunc(s *epoll.BsdSocket, engine dbengine.DBEngine) {
 	for payload := range ch {
 		if payload.Err != nil {
 			if payload.Err == io.EOF ||
-				payload.Err == io.ErrUnexpectedEOF ||
+				errors.Is(payload.Err, io.ErrUnexpectedEOF) ||
 				strings.Contains(payload.Err.Error(), "use of closed network connection") {
 				// 断开连接，终止处理
 				slog.Info("connection closed!")

@@ -4,13 +4,26 @@ package dbengine
 import (
 	"fmt"
 	"github.com/lengdanran/gredis/interface/redis"
+	"github.com/lengdanran/gredis/lib/timewheel"
 	"github.com/lengdanran/gredis/redis/connection"
 	"github.com/lengdanran/gredis/redis/datastruct/dict"
 	"github.com/lengdanran/gredis/redis/protocol"
 	"log/slog"
 	"runtime/debug"
 	"strings"
+	"time"
 )
+
+const (
+	dataDictSize = 1 << 16
+	ttlDictSize  = 1 << 10
+)
+
+/* ---- TTL Functions ---- */
+
+func genExpireTask(key string) string {
+	return "expire:" + key
+}
 
 type RedisEngine struct {
 	DBEngine
@@ -26,7 +39,11 @@ type RedisEngine struct {
 }
 
 func NewRedisEngine() *RedisEngine {
-	engine := &RedisEngine{}
+	engine := &RedisEngine{
+		data:       dict.MakeConcurrent(dataDictSize),
+		ttlMap:     dict.MakeConcurrent(ttlDictSize),
+		versionMap: dict.MakeConcurrent(dataDictSize),
+	}
 	return engine
 }
 
@@ -77,6 +94,35 @@ func (engine *RedisEngine) Close() {
 	// do nothing
 }
 
+// Remove the given key from db
+func (engine *RedisEngine) Remove(key string) {
+	_, _ = engine.data.RemoveWithLock(key)
+	engine.ttlMap.Remove(key)
+	taskKey := genExpireTask(key)
+	timewheel.Cancel(taskKey)
+}
+
+func (engine *RedisEngine) IsExpired(key string) bool {
+	rawExpireTime, ok := engine.ttlMap.Get(key)
+	if !ok {
+		return false
+	}
+	expireTime, _ := rawExpireTime.(time.Time)
+	expired := time.Now().After(expireTime)
+	if expired {
+		engine.Remove(key)
+	}
+	return expired
+}
+
 func (engine *RedisEngine) GetEntity(key string) (*DataEntity, bool) {
-	return nil, false
+	raw, ok := engine.data.GetWithLock(key)
+	if !ok {
+		return nil, false
+	}
+	if engine.IsExpired(key) {
+		return nil, false
+	}
+	entity, _ := raw.(*DataEntity)
+	return entity, true
 }
