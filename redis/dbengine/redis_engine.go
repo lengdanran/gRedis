@@ -6,7 +6,6 @@ import (
 	"github.com/lengdanran/gredis/interface/redis"
 	"github.com/lengdanran/gredis/lib/hashmap"
 	"github.com/lengdanran/gredis/lib/timewheel"
-	"github.com/lengdanran/gredis/redis/connection"
 	"github.com/lengdanran/gredis/redis/protocol"
 	"log/slog"
 	"runtime/debug"
@@ -26,9 +25,6 @@ type RedisEngine struct {
 	data *hashmap.HashMap
 	// key -> expireTime (time.Time)
 	ttlMap *hashmap.HashMap
-	// 回调钩子
-	insertCallback KeyEventCallback
-	deleteCallback KeyEventCallback
 }
 
 func NewRedisEngine() *RedisEngine {
@@ -37,14 +33,6 @@ func NewRedisEngine() *RedisEngine {
 		ttlMap: hashmap.NewHashMap(),
 	}
 	return engine
-}
-
-func (engine *RedisEngine) SetInsertCallback(callback KeyEventCallback) {
-	engine.insertCallback = callback
-}
-
-func (engine *RedisEngine) SetDeleteCallback(callback KeyEventCallback) {
-	engine.deleteCallback = callback
 }
 
 func (engine *RedisEngine) Exec(cmdLine [][]byte) (result redis.Reply) {
@@ -61,14 +49,6 @@ func (engine *RedisEngine) Exec(cmdLine [][]byte) (result redis.Reply) {
 	}
 	result = etr.ExecF(engine, cmdLine[1:])
 	return result
-}
-
-func (engine *RedisEngine) AfterClientClose(c *connection.Connection) {
-	// do nothing
-}
-
-func (engine *RedisEngine) Close() {
-	// do nothing
 }
 
 // Remove the given key from db
