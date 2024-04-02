@@ -123,6 +123,10 @@ func (h *HashMap) Put(entry Entry) {
 	} else {
 		// 如果第一个元素不为空-->说明发生了 hash 冲突
 		for ptr.Next != nil {
+			if ptr.Key == entry.Key {
+				ptr.Value = entry.Value
+				return
+			}
 			ptr = ptr.Next
 		}
 		ptr.Next = &entry
@@ -134,8 +138,12 @@ func (h *HashMap) Put(entry Entry) {
 }
 
 func (h *HashMap) getEntry(key string) *Entry {
+	if h.Size == 0 {
+		return nil
+	}
 	hash := h.hash(key)
 	index := h.getIndex(hash)
+
 	ptr := h.Slots[index]
 	if ptr == nil {
 		return ptr

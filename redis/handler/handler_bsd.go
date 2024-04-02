@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lengdanran/gredis/epoll"
+	_ "github.com/lengdanran/gredis/redis/datastruct"
 	"github.com/lengdanran/gredis/redis/dbengine"
 	"github.com/lengdanran/gredis/redis/parser"
 	"github.com/lengdanran/gredis/redis/protocol"

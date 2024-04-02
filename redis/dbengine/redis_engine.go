@@ -4,19 +4,14 @@ package dbengine
 import (
 	"fmt"
 	"github.com/lengdanran/gredis/interface/redis"
+	"github.com/lengdanran/gredis/lib/hashmap"
 	"github.com/lengdanran/gredis/lib/timewheel"
 	"github.com/lengdanran/gredis/redis/connection"
-	"github.com/lengdanran/gredis/redis/datastruct/dict"
 	"github.com/lengdanran/gredis/redis/protocol"
 	"log/slog"
 	"runtime/debug"
 	"strings"
 	"time"
-)
-
-const (
-	dataDictSize = 1 << 16
-	ttlDictSize  = 1 << 10
 )
 
 /* ---- TTL Functions ---- */
@@ -28,11 +23,9 @@ func genExpireTask(key string) string {
 type RedisEngine struct {
 	DBEngine
 	// key -> DataEntity
-	data *dict.ConcurrentDict
+	data *hashmap.HashMap
 	// key -> expireTime (time.Time)
-	ttlMap *dict.ConcurrentDict
-	// key -> version(uint32)
-	versionMap *dict.ConcurrentDict
+	ttlMap *hashmap.HashMap
 	// 回调钩子
 	insertCallback KeyEventCallback
 	deleteCallback KeyEventCallback
@@ -40,9 +33,8 @@ type RedisEngine struct {
 
 func NewRedisEngine() *RedisEngine {
 	engine := &RedisEngine{
-		data:       dict.MakeConcurrent(dataDictSize),
-		ttlMap:     dict.MakeConcurrent(ttlDictSize),
-		versionMap: dict.MakeConcurrent(dataDictSize),
+		data:   hashmap.NewHashMap(),
+		ttlMap: hashmap.NewHashMap(),
 	}
 	return engine
 }
@@ -53,18 +45,6 @@ func (engine *RedisEngine) SetInsertCallback(callback KeyEventCallback) {
 
 func (engine *RedisEngine) SetDeleteCallback(callback KeyEventCallback) {
 	engine.deleteCallback = callback
-}
-
-/* ---- Lock Function ----- */
-
-// RWLocks lock keys for writing and reading
-func (engine *RedisEngine) RWLocks(writeKeys []string, readKeys []string) {
-	engine.data.RWLocks(writeKeys, readKeys)
-}
-
-// RWUnLocks unlock keys for writing and reading
-func (engine *RedisEngine) RWUnLocks(writeKeys []string, readKeys []string) {
-	engine.data.RWUnLocks(writeKeys, readKeys)
 }
 
 func (engine *RedisEngine) Exec(cmdLine [][]byte) (result redis.Reply) {
@@ -79,9 +59,6 @@ func (engine *RedisEngine) Exec(cmdLine [][]byte) (result redis.Reply) {
 	if !ok {
 		return protocol.MakeErrReply("ERR unknown command '" + exeName + "'")
 	}
-	write, read := etr.LockKeysF(cmdLine[1:])
-	engine.RWLocks(write, read)
-	defer engine.RWUnLocks(write, read)
 	result = etr.ExecF(engine, cmdLine[1:])
 	return result
 }
@@ -96,15 +73,15 @@ func (engine *RedisEngine) Close() {
 
 // Remove the given key from db
 func (engine *RedisEngine) Remove(key string) {
-	_, _ = engine.data.RemoveWithLock(key)
-	engine.ttlMap.Remove(key)
+	_ = engine.data.Del(key)
+	engine.ttlMap.Del(key)
 	taskKey := genExpireTask(key)
 	timewheel.Cancel(taskKey)
 }
 
 func (engine *RedisEngine) IsExpired(key string) bool {
-	rawExpireTime, ok := engine.ttlMap.Get(key)
-	if !ok {
+	rawExpireTime := engine.ttlMap.Get(key)
+	if rawExpireTime == nil {
 		return false
 	}
 	expireTime, _ := rawExpireTime.(time.Time)
@@ -116,8 +93,8 @@ func (engine *RedisEngine) IsExpired(key string) bool {
 }
 
 func (engine *RedisEngine) GetEntity(key string) (*DataEntity, bool) {
-	raw, ok := engine.data.GetWithLock(key)
-	if !ok {
+	raw := engine.data.Get(key)
+	if raw == nil {
 		return nil, false
 	}
 	if engine.IsExpired(key) {
@@ -125,4 +102,8 @@ func (engine *RedisEngine) GetEntity(key string) (*DataEntity, bool) {
 	}
 	entity, _ := raw.(*DataEntity)
 	return entity, true
+}
+
+func (engine *RedisEngine) PutEntity(key string, val *DataEntity) {
+	engine.data.Put(hashmap.Entry{Key: key, Value: val})
 }
