@@ -13,6 +13,7 @@ func init() {
 	dbengine.RegisterExecutor("get", ExeGet)
 	dbengine.RegisterExecutor("set", ExeSet)
 	dbengine.RegisterExecutor("del", ExeDel)
+	dbengine.RegisterExecutor("getset", ExeGetSet)
 }
 
 func getAsString(eg *dbengine.RedisEngine, key string) ([]byte, protocol.ErrorReply) {
@@ -51,4 +52,15 @@ func ExeDel(eg *dbengine.RedisEngine, args [][]byte) redis.Reply {
 	key := string(args[0])
 	eg.Remove(key)
 	return &protocol.OkReply{}
+}
+
+func ExeGetSet(eg *dbengine.RedisEngine, args [][]byte) redis.Reply {
+	if len(args) < 2 {
+		return protocol.MakeArgNumErrReply("getset cmd needs 2 arguments!")
+	}
+	key := string(args[0])
+	val := string(args[1])
+	oldVal := eg.Data.Get(key).(string)
+	eg.PutEntity(key, &dbengine.DataEntity{Data: val})
+	return protocol.MakeBulkReply([]byte(oldVal))
 }

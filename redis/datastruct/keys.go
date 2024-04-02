@@ -10,6 +10,7 @@ import (
 
 func init() {
 	dbengine.RegisterExecutor("keys", ExeKeys)
+	dbengine.RegisterExecutor("exists", ExeExists)
 }
 
 func ExeKeys(eg *dbengine.RedisEngine, args [][]byte) redis.Reply {
@@ -29,4 +30,12 @@ func ExeKeys(eg *dbengine.RedisEngine, args [][]byte) redis.Reply {
 		result = append(result, []byte(k))
 	}
 	return protocol.MakeMultiBulkReply(result)
+}
+
+func ExeExists(eg *dbengine.RedisEngine, args [][]byte) redis.Reply {
+	contains := eg.Data.Contains(string(args[0]))
+	if contains {
+		return protocol.MakeBulkReply([]byte("true"))
+	}
+	return protocol.MakeBulkReply([]byte("false"))
 }
