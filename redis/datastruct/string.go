@@ -5,7 +5,6 @@ import (
 	"github.com/lengdanran/gredis/interface/redis"
 	"github.com/lengdanran/gredis/redis/dbengine"
 	"github.com/lengdanran/gredis/redis/protocol"
-	"log"
 )
 
 func init() {
@@ -30,10 +29,9 @@ func getAsString(eg *dbengine.RedisEngine, key string) ([]byte, protocol.ErrorRe
 
 func ExeGet(eg *dbengine.RedisEngine, args [][]byte) redis.Reply {
 	key := string(args[0])
-	bytes, err := getAsString(eg, key)
-	if err != nil {
-		log.Print(err.Error())
-		return protocol.MakeErrReply(err.Error())
+	bytes, errReply := getAsString(eg, key)
+	if errReply != nil {
+		return errReply
 	}
 	if bytes == nil {
 		return &protocol.NullBulkReply{}
