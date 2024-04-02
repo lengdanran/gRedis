@@ -168,6 +168,9 @@ func (h *HashMap) Get(key string) EntryVal {
 }
 
 func (h *HashMap) Del(key string) EntryVal {
+	if h.Size == 0 {
+		return nil
+	}
 	hash := h.hash(key)
 	index := h.getIndex(hash)
 	ptr := h.Slots[index]
@@ -200,6 +203,9 @@ func (h *HashMap) Len() int {
 
 func (h *HashMap) Keys() []string {
 	var keys []string
+	if h.Size == 0 {
+		return keys
+	}
 	for i := 0; i < h.Cap; i++ {
 		ptr := h.Slots[i]
 		if ptr != nil {

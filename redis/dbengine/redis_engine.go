@@ -22,15 +22,15 @@ func genExpireTask(key string) string {
 type RedisEngine struct {
 	DBEngine
 	// key -> DataEntity
-	data *hashmap.HashMap
+	Data *hashmap.HashMap
 	// key -> expireTime (time.Time)
-	ttlMap *hashmap.HashMap
+	TtlMap *hashmap.HashMap
 }
 
 func NewRedisEngine() *RedisEngine {
 	engine := &RedisEngine{
-		data:   hashmap.NewHashMap(),
-		ttlMap: hashmap.NewHashMap(),
+		Data:   hashmap.NewHashMap(),
+		TtlMap: hashmap.NewHashMap(),
 	}
 	return engine
 }
@@ -53,14 +53,14 @@ func (engine *RedisEngine) Exec(cmdLine [][]byte) (result redis.Reply) {
 
 // Remove the given key from db
 func (engine *RedisEngine) Remove(key string) {
-	_ = engine.data.Del(key)
-	engine.ttlMap.Del(key)
+	_ = engine.Data.Del(key)
+	engine.TtlMap.Del(key)
 	taskKey := genExpireTask(key)
 	timewheel.Cancel(taskKey)
 }
 
 func (engine *RedisEngine) IsExpired(key string) bool {
-	rawExpireTime := engine.ttlMap.Get(key)
+	rawExpireTime := engine.TtlMap.Get(key)
 	if rawExpireTime == nil {
 		return false
 	}
@@ -72,8 +72,8 @@ func (engine *RedisEngine) IsExpired(key string) bool {
 	return expired
 }
 
-func (engine *RedisEngine) GetEntity(key string) (*DataEntity, bool) {
-	raw := engine.data.Get(key)
+func (engine *RedisEngine) Get(key string) (*DataEntity, bool) {
+	raw := engine.Data.Get(key)
 	if raw == nil {
 		return nil, false
 	}
@@ -85,5 +85,5 @@ func (engine *RedisEngine) GetEntity(key string) (*DataEntity, bool) {
 }
 
 func (engine *RedisEngine) PutEntity(key string, val *DataEntity) {
-	engine.data.Put(hashmap.Entry{Key: key, Value: val})
+	engine.Data.Put(hashmap.Entry{Key: key, Value: val})
 }
