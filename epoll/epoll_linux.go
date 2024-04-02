@@ -1,7 +1,6 @@
-//go:build linux
-// +build linux
-
 // Package epoll lengdanran 2024/3/29 16:50
+//go:build linux
+
 package epoll
 
 import (
@@ -23,7 +22,7 @@ import (
 	"syscall"
 )
 
-type epoll struct {
+type Epoll struct {
 	fd          int
 	connections map[int]net.Conn
 	lock        *sync.RWMutex
@@ -72,7 +71,7 @@ func (svr *EpollServer) Start() {
 	}
 }
 
-func start(epoller *epoll, engine dbengine.DBEngine) {
+func start(epoller *Epoll, engine dbengine.DBEngine) {
 	for {
 		connections, err := epoller.Wait()
 		if err != nil {
@@ -126,19 +125,19 @@ func start(epoller *epoll, engine dbengine.DBEngine) {
 	}
 }
 
-func NewEpoll() (*epoll, error) {
+func NewEpoll() (*Epoll, error) {
 	fd, err := unix.EpollCreate1(0)
 	if err != nil {
 		return nil, err
 	}
-	return &epoll{
+	return &Epoll{
 		fd:          fd,
 		lock:        &sync.RWMutex{},
 		connections: make(map[int]net.Conn),
 	}, nil
 }
 
-func (e *epoll) Add(conn net.Conn) error {
+func (e *Epoll) Add(conn net.Conn) error {
 	// Extract file descriptor associated with the connection
 	fd := socketFD(conn)
 	err := unix.EpollCtl(e.fd, syscall.EPOLL_CTL_ADD, fd, &unix.EpollEvent{Events: unix.POLLIN | unix.POLLHUP, Fd: int32(fd)})
@@ -154,7 +153,7 @@ func (e *epoll) Add(conn net.Conn) error {
 	return nil
 }
 
-func (e *epoll) Remove(conn net.Conn) error {
+func (e *Epoll) Remove(conn net.Conn) error {
 	fd := socketFD(conn)
 	err := unix.EpollCtl(e.fd, syscall.EPOLL_CTL_DEL, fd, nil)
 	if err != nil {
@@ -169,7 +168,7 @@ func (e *epoll) Remove(conn net.Conn) error {
 	return nil
 }
 
-func (e *epoll) Wait() ([]net.Conn, error) {
+func (e *Epoll) Wait() ([]net.Conn, error) {
 	events := make([]unix.EpollEvent, 100)
 	n, err := unix.EpollWait(e.fd, events, 100)
 	if err != nil {

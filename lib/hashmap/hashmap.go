@@ -122,14 +122,16 @@ func (h *HashMap) Put(entry Entry) {
 		h.Size++
 	} else {
 		// 如果第一个元素不为空-->说明发生了 hash 冲突
-		for ptr.Next != nil {
+		for ptr != nil {
 			if ptr.Key == entry.Key {
 				ptr.Value = entry.Value
 				return
 			}
+			if ptr.Next == nil {
+				ptr.Next = &entry
+			}
 			ptr = ptr.Next
 		}
-		ptr.Next = &entry
 		h.Size++
 	}
 	if h.Size > h.threshold {

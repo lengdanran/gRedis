@@ -2,6 +2,7 @@
 package hashmap
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	"log"
 	"testing"
@@ -98,4 +99,14 @@ func TestHashMap_Entries(t *testing.T) {
 			t.Fail()
 		}
 	}
+}
+
+func TestHashMap_Put2(t *testing.T) {
+	hashMap := NewHashMap()
+	en1 := Entry{Key: "kk", Value: "vv"}
+	hashMap.Put(en1)
+	en2 := Entry{Key: "kk", Value: "vvvvv"}
+	hashMap.Put(en2)
+	entryVal := hashMap.Get("kk")
+	fmt.Print(entryVal)
 }
